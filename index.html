@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IslamicOrbit</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2em;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .call-button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 5px;
+            transition: transform 0.3s;
+        }
+
+        .call-button.active {
+            color: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            margin-bottom: 5px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message-content {
+            line-height: 1.5;
+        }
+
+        .message-content p {
+            margin-bottom: 0.5em;
+        }
+
+        .message-content ul, .message-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+
+        .message-content li {
+            margin: 0.3em 0;
+        }
+
+        .message-content strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .message-content em {
+            font-style: italic;
+        }
+
+        .message-content code {
+            background: #f8f9fa;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .message-content pre {
+            background: #f8f9fa;
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid #2c3e50;
+            margin: 0.5em 0;
+            padding-left: 1em;
+            color: #666;
+        }
+
+        .user-message {
+            margin-left: auto;
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 15px 15px 0 15px;
+        }
+
+        .bot-message {
+            margin-right: auto;
+            background: #f1f1f1;
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 15px 15px 15px 0;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            position: sticky;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        #send-button, #mic-button {
+            padding: 10px 20px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #send-button:hover, #mic-button:hover {
+            background: #34495e;
+        }
+
+        #mic-button.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .loading {
+            display: none;
+            margin-right: auto;
+            background: #f1f1f1;
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 15px 15px 15px 0;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+
+        .call-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .call-status.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <span>IslamOrbit</span>
+                <div class="header-controls">
+                    <button class="call-button" id="call-button" title="Start Voice Call">📞</button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    Assalamu alaikum! I'm your Islamic AI assistant. How can I help you today?
+                </div>
+            </div>
+            <div class="loading" id="loading">Thinking</div>
+        </div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message here..." autocomplete="off">
+            <div class="button-group">
+                <button id="mic-button" title="Record Voice Message">🎤</button>
+                <button id="send-button">Send</button>
+            </div>
+        </div>
+    </div>
+    <div class="call-status" id="call-status">Voice Call Active</div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const micButton = document.getElementById('mic-button');
+        const callButton = document.getElementById('call-button');
+        const callStatus = document.getElementById('call-status');
+        const loading = document.getElementById('loading');
+
+        // Speech recognition setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        // Speech synthesis setup
+        const speechSynthesis = window.speechSynthesis;
+        let speaking = false;
+        let isCallActive = false;
+        let ws = null;
+
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8765');
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                callStatus.textContent = 'Voice Call Connected';
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'response') {
+                    addMessage(data.text);
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                callStatus.textContent = 'Voice Call Disconnected';
+                isCallActive = false;
+                callButton.classList.remove('active');
+                callStatus.classList.remove('active');
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                callStatus.textContent = 'Voice Call Error';
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (isUser) {
+                contentDiv.textContent = message;
+            } else {
+                // Parse markdown for bot messages
+                contentDiv.innerHTML = marked.parse(message);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Speak bot messages if call is active
+            if (!isUser && isCallActive) {
+                // Remove markdown formatting for speech
+                const plainText = message.replace(/[*_`#-]/g, '');
+                speakMessage(plainText);
+            }
+        }
+
+        function speakMessage(message) {
+            if (speaking) {
+                speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9; // Slightly slower for better clarity
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            speaking = true;
+            speechSynthesis.speak(utterance);
+
+            utterance.onend = () => {
+                speaking = false;
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                speaking = false;
+            };
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, true);
+            userInput.value = '';
+
+            // Show loading indicator
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch(`/v1/chat?prompt=${encodeURIComponent(message)}`);
+                const data = await response.json();
+                
+                // Hide loading indicator
+                loading.style.display = 'none';
+                
+                // Add bot response to chat
+                addMessage(data.message);
+            } catch (error) {
+                // Hide loading indicator
+                loading.style.display = 'none';
+                
+                // Show error message
+                addMessage('Sorry, there was an error processing your request. Please try again.');
+            }
+        }
+
+        // Speech recognition event handlers
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            if (isCallActive && ws) {
+                // Send voice input directly through WebSocket
+                ws.send(JSON.stringify({ text: transcript }));
+                addMessage(transcript, true);
+            } else {
+                userInput.value = transcript;
+            }
+        };
+
+        recognition.onend = () => {
+            micButton.classList.remove('recording');
+            micButton.textContent = '🎤';
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            micButton.classList.remove('recording');
+            micButton.textContent = '🎤';
+        };
+
+        // Call button handler
+        callButton.addEventListener('click', () => {
+            isCallActive = !isCallActive;
+            callButton.classList.toggle('active');
+            callStatus.classList.toggle('active');
+            
+            if (isCallActive) {
+                callButton.textContent = '📞';
+                connectWebSocket();
+                // Speak the last bot message when call starts
+                const lastBotMessage = chatMessages.querySelector('.bot-message:last-child');
+                if (lastBotMessage) {
+                    speakMessage(lastBotMessage.textContent);
+                }
+            } else {
+                callButton.textContent = '📞';
+                disconnectWebSocket();
+                // Stop any ongoing speech
+                speechSynthesis.cancel();
+            }
+        });
+
+        // Event listeners
+        sendButton.addEventListener('click', () => {
+            if (isCallActive && ws) {
+                // Send text input through WebSocket
+                ws.send(JSON.stringify({ text: userInput.value }));
+                addMessage(userInput.value, true);
+                userInput.value = '';
+            } else {
+                sendMessage();
+            }
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (isCallActive && ws) {
+                    // Send text input through WebSocket
+                    ws.send(JSON.stringify({ text: userInput.value }));
+                    addMessage(userInput.value, true);
+                    userInput.value = '';
+                } else {
+                    sendMessage();
+                }
+            }
+        });
+
+        micButton.addEventListener('click', () => {
+            if (micButton.classList.contains('recording')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                micButton.classList.add('recording');
+                micButton.textContent = '⏹';
+            }
+        });
+
+        // Configure marked options
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: true,
+            smartLists: true,
+            smartypants: true
+        });
+    </script>
+</body>
+</html> 
